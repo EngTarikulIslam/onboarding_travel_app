@@ -1,16 +1,45 @@
-# onboarding
+# Onboarding (Travel Alarm APP)
+Our eCommerce software is built for gift shops, offering an easy-to-use platform to sell handmade, personalized, or specialty items. Shop owners can set up stores, manage products and orders, and engage customers—all from one place. It streamlines operations and expands online reach with flexible, customizable features.
 
-A new Flutter project.
+## App Screenshots
 
-## Getting Started
+| Flash Screen | Login Page | Sign Up |
+|-------------|--------------|----------|
+| ![Flash Screen](images/LogoScreen.png) | ![Login](images/Login.png) | ![Sign Up](images/Register.png) |
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+| Forget Password | Home Page | Wishlist |
+|-------------|--------------|----------|
+| ![Flash Screen](images/Forgetpassword.png) | ![Login](images/Home.png) | ![Sign Up](images/WishList.png) |
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Search Page | Product Page | Cart Page |
+|-------------|--------------|----------|
+| ![Search](images/search.png) | ![Product Page](images/Products.png) | ![Cart Page](images/Cart.png) |
+
+
+| Checkout Page | Payment Page | Payment Success Message |
+|-------------|--------------|----------|
+| ![Checkout Page](images/Checkout.png) | ![Payment Page](images/Payment.png) | ![Payment Success](images/Success.png) |
+
+
+| Profile Page | Edit Profile Page | All Order View |
+|-------------|--------------|----------|
+| ![Profile Page](images/Profile.png) | ![Eidit Prodile Page](images/eiditProdile.png) | ![All Order](images/allorder.png) |
+
+
+| Finished Order View | Pending Shipment | Pending Payment |
+|-------------|--------------|----------|
+| ![Finished Order](images/finishedorder.png) | ![Pending Shipment](images/pendingshipment.png) | ![Pending Payment](images/pendingpayment.png) |
+
+
+| Categorical menu bae | Add Shiping Address | View & Edit Shiping Address |
+|-------------|--------------|----------|
+| ![Categorical Menu](images/Menu.png) | ![Add Shiping Address](images/ShipingAddress.png) | ![View & Edit Shiping Address](images/Viewandeditshipingaddress.png) |
+
+
+## Installation
+
+```dart
+flutter pub get
+flutter run
