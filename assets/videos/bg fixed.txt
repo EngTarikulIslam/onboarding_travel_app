@@ -1,0 +1,373 @@
+import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import '../../constants/strings.dart';
+import '../../constants/colors.dart';
+import 'onboarding_controller.dart';
+import 'onboarding_model.dart';
+import '../../helpers/shared_preferences_helper.dart';
+import '../home/home_screen.dart';
+
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final OnboardingController _controller = OnboardingController();
+  int _currentPage = 0;
+  late VideoPlayerController _videoController;
+  bool _isVideoInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // প্রথম ভিডিওটি ইনিশিয়ালাইজ করুন
+    _initializeVideo(0);
+  }
+
+  void _initializeVideo(int pageIndex) {
+    final page = _controller.onboardingPages[pageIndex];
+
+    if (page.isVideo) {
+      if (_isVideoInitialized) {
+        _videoController.dispose();
+      }
+
+      _videoController = VideoPlayerController.asset(page.imagePath)
+        ..initialize().then((_) {
+          setState(() {
+            _isVideoInitialized = true;
+          });
+          _videoController.setLooping(true);
+          _videoController.play();
+        }).catchError((error) {
+          print('Video initialization error: $error');
+          setState(() {
+            _isVideoInitialized = false;
+          });
+        });
+    }
+  }
+
+  void _nextPage() {
+    if (_currentPage < _controller.onboardingPages.length - 1) {
+      _controller.pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeIn,
+      );
+    } else {
+      _completeOnboarding();
+    }
+  }
+
+  void _skipOnboarding() {
+    _completeOnboarding();
+  }
+
+  Future<void> _completeOnboarding() async {
+    // ভিডিও কন্ট্রোলার ডিসপোজ করুন
+    if (_isVideoInitialized) {
+      _videoController.pause();
+      _videoController.dispose();
+    }
+
+    // Save that onboarding is completed
+    await SharedPreferencesHelper.setOnboardingCompleted();
+
+    // Navigate to Home Screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
+  }
+
+  @override
+  void dispose() {
+    if (_isVideoInitialized) {
+      _videoController.dispose();
+    }
+    _controller.pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // Background Linear Gradient
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0B0024), // #0B0024
+              Color(0xFF082257), // #082257
+            ],
+            stops: [0.0, 1.0],
+            transform: GradientRotation(0 * 3.14159 / 180), // 360 degrees
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // PageView
+              PageView.builder(
+                controller: _controller.pageController,
+                itemCount: _controller.onboardingPages.length,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                  // নতুন পেজে গেলে নতুন ভিডিও ইনিশিয়ালাইজ করুন
+                  _initializeVideo(index);
+                },
+                itemBuilder: (context, index) {
+                  return _buildPage(_controller.onboardingPages[index]);
+                },
+              ),
+
+              // Skip Button - Top Right
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      print('Skip button pressed');
+                      _skipOnboarding();
+                    },
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom Section (Dots + Button)
+              Positioned(
+                bottom: 60,
+                left: 0,
+                right: 0,
+                child: Column(
+                  children: [
+                    // Dots Indicator
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _controller.onboardingPages.length,
+                            (index) => Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _currentPage == index
+                                ? Colors.white // সাদা রঙ করেছি গ্রেডিয়েন্ট ব্যাকগ্রাউন্ডের জন্য
+                                : Colors.white.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // Next Button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _nextPage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Color(0xFF082257), // প্রাইমারি কালার
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: Text(
+                            _currentPage == _controller.onboardingPages.length - 1
+                                ? 'Get Started'
+                                : 'Next',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPage(OnboardingModel page) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 40), // Reduced top space
+
+            // Video Container at TOP position
+            Container(
+              width: 360,
+              height: 429,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 25,
+                    spreadRadius: 3,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: page.isVideo
+                    ? _isVideoInitialized
+                    ? _buildVideoPlayerWithCoverFit()
+                    : _buildLoadingIndicator()
+                    : _buildImageOrPlaceholder(page),
+              ),
+            ),
+
+            const SizedBox(height: 40), // Reduced space between video and text
+
+            // Title - White color for gradient background
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                page.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white, // সাদা রঙ
+                  height: 1.2,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16), // Reduced space
+
+            // Subtitle - Light white color
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                page.subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.8), // হালকা সাদা
+                  height: 1.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 100), // Extra space for bottom buttons
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ভিডিও প্লেয়ার বিল্ড করার জন্য - BoxFit.cover
+  Widget _buildVideoPlayerWithCoverFit() {
+    return Container(
+      width: 360,
+      height: 429,
+      color: Colors.black,
+      child: SizedBox(
+        width: 360,
+        height: 429,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: _videoController.value.size.width,
+            height: _videoController.value.size.height,
+            child: VideoPlayer(_videoController),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // লোডিং ইন্ডিকেটর
+  Widget _buildLoadingIndicator() {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              color: Colors.white,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading video...',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ইমেজ বা প্লেসহোল্ডার
+  Widget _buildImageOrPlaceholder(OnboardingModel page) {
+    return page.imagePath.isNotEmpty
+        ? Image.asset(
+      page.imagePath,
+      fit: BoxFit.cover,
+      width: 360,
+      height: 429,
+    )
+        : Container(
+      color: Colors.black.withOpacity(0.3),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.videocam,
+              size: 80,
+              color: Colors.white.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Video Placeholder',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
