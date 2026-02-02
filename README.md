@@ -18,9 +18,9 @@ Set alarms with our beautiful, intuitive date-time picker featuring a sleek dark
 
 ## App Screenshots
 
-| Onboarding Screen-1 | Onboarding Screen-2 | Onboarding Screen-1 |
+| Onboarding Screen-1 | Onboarding Screen-2 | Onboarding Screen-3 |
 |-------------|--------------|----------|
-| ![Onboarding Screen-1](assets/images/1.jpeg) | ![Onboarding Screen-2](assets/images/2.jpeg) | ![Onboarding Screen-1](assets/images/3.jpeg) |
+| ![Onboarding Screen-1](assets/images/1.jpeg) | ![Onboarding Screen-2](assets/images/2.jpeg) | ![Onboarding Screen-3](assets/images/3.jpeg) |
 
 
 | Location access permission Screen | Notification Permission Screen | Wellcome screen |
