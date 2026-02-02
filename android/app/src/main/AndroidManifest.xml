@@ -4,30 +4,36 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Required for notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Important for exact alarms (Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
-    <!-- Allows rescheduling after device reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- Helps keep device awake for alarms -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <!-- If you need internet (optional) -->
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- For Android 13+ media (if needed) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:label="Onboarding"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/LaunchTheme">
+
+        <!-- Awesome Notifications Boot Receiver -->
+        <receiver
+            android:name="me.carda.awesome_notifications.notifications.receivers.AwesomeNotificationsRebootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Awesome Notifications Scheduled Receiver -->
+        <receiver
+            android:name="me.carda.awesome_notifications.notifications.receivers.AwesomePeriodicNotificationsReceiver"
+            android:enabled="true"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"
@@ -46,20 +52,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
 
-        <!-- Required for flutter_local_notifications to reschedule after reboot -->
-        <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:enabled="true"
-            android:exported="true">
+            <!-- Notification Click Handling -->
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </receiver>
-
-        <!-- Optional: If you want full-screen intent for alarms (lock screen show) -->
-        <!-- <receiver android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" /> -->
+        </activity>
 
         <meta-data
             android:name="flutterEmbedding"

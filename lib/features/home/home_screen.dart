@@ -34,17 +34,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _initializeApp() async {
     await notificationService.initialize();
 
-    // Request all permissions (notification + exact alarm + battery opt)
+    // Request permissions
     bool granted = await notificationService.requestAllPermissions();
     if (!granted && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Allow notifications & "Set alarms & reminders" in settings for alarms to work',
+            'Allow notifications & "Set alarms & reminders" in settings for alarms to work reliably',
             style: TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.redAccent,
-          duration: const Duration(seconds: 6),
+          duration: const Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Open Settings',
             textColor: Colors.white,
@@ -59,8 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadAlarms();
     await _getCurrentLocation();
 
-    // Debug: show pending notifications count on load
-    await notificationService.printPendingNotifications();
+    // Debug: check pending notifications
+    await notificationService.printPending();
   }
 
   Future<void> _loadAlarms() async {
@@ -186,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
 
-      if (picked != null) {
+      if (picked != null && mounted) {
         selectedDateTime = DateTime(
           picked.year,
           picked.month,
@@ -217,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
 
-      if (picked != null) {
+      if (picked != null && mounted) {
         selectedDateTime = DateTime(
           selectedDateTime.year,
           selectedDateTime.month,
@@ -234,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setStateModal) {
             return Container(
               height: MediaQuery.of(context).size.height * 0.6,
               decoration: const BoxDecoration(
@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: GestureDetector(
                             onTap: () async {
                               await selectDate();
-                              setState(() {});
+                              setStateModal(() {});
                             },
                             child: Container(
                               height: 100,
@@ -340,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: GestureDetector(
                             onTap: () async {
                               await selectTime();
-                              setState(() {});
+                              setStateModal(() {});
                             },
                             child: Container(
                               height: 100,
@@ -422,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _saveAlarmToStorage(DateTime dateTime) async {
+  Future<void> _saveAlarmToStorage(DateTime dateTime) async {
     if (!mounted) return;
 
     if (dateTime.isBefore(DateTime.now())) {
@@ -463,10 +463,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     await _saveAlarms();
-    _scheduleAlarmNotification(newAlarm);
 
-    // Debug: Check pending after schedule
-    await notificationService.printPendingNotifications();
+    final success = await _scheduleAlarmNotification(newAlarm);
+
+    if (!success && mounted) {
+      _showAlarmPermissionGuide();
+    }
+
+    // Debug pending
+    await notificationService.printPending();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -478,36 +483,45 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _scheduleAlarmNotification(AlarmModel alarm) {
-    if (alarm.isActive && alarm.dateTime.isAfter(DateTime.now())) {
-      print("Scheduling alarm: ${alarm.time} at ${alarm.dateTime}");
-      notificationService.scheduleAlarmNotification(
-        id: alarm.id,
-        scheduledDateTime: alarm.dateTime,
-        title: 'Alarm',
-        body: 'Time: ${alarm.time} • ${alarm.date}',
-      );
-    } else {
-      print("Skipped: not active or past time");
+  Future<bool> _scheduleAlarmNotification(AlarmModel alarm) async {
+    if (!alarm.isActive || alarm.dateTime.isBefore(DateTime.now())) {
+      print("Skipped scheduling: not active or past time → ${alarm.id}");
+      return false;
     }
+
+    print("Scheduling alarm → ID: ${alarm.id} at ${alarm.dateTime}");
+
+    final success = await notificationService.scheduleAlarmNotification(
+      id: alarm.id,
+      scheduledDateTime: alarm.dateTime,
+      title: 'Travel Alarm',
+      body: 'Time: ${alarm.time} • ${alarm.date} ${alarm.location != null ? '• Location: ${alarm.location}' : ''}',
+    );
+
+    return success;
   }
 
   void _toggleAlarm(int index) async {
     final alarm = _alarms[index];
 
+    final updatedAlarm = AlarmModel(
+      id: alarm.id,
+      time: alarm.time,
+      date: alarm.date,
+      isActive: !alarm.isActive,
+      dateTime: alarm.dateTime,
+      location: alarm.location,
+    );
+
     setState(() {
-      _alarms[index] = AlarmModel(
-        id: alarm.id,
-        time: alarm.time,
-        date: alarm.date,
-        isActive: !alarm.isActive,
-        dateTime: alarm.dateTime,
-        location: alarm.location,
-      );
+      _alarms[index] = updatedAlarm;
     });
 
-    if (_alarms[index].isActive && _alarms[index].dateTime.isAfter(DateTime.now())) {
-      _scheduleAlarmNotification(_alarms[index]);
+    if (updatedAlarm.isActive && updatedAlarm.dateTime.isAfter(DateTime.now())) {
+      final success = await _scheduleAlarmNotification(updatedAlarm);
+      if (!success && mounted) {
+        _showAlarmPermissionGuide();
+      }
     } else if (alarm.isActive) {
       await notificationService.cancelNotification(alarm.id);
       print("Cancelled notification for ID: ${alarm.id}");
@@ -515,8 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _saveAlarms();
 
-    // Debug pending after toggle
-    await notificationService.printPendingNotifications();
+    await notificationService.printPending();
   }
 
   void _deleteAlarm(int index) async {
@@ -531,15 +544,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _saveAlarms();
 
-    // Debug pending after delete
-    await notificationService.printPendingNotifications();
+    await notificationService.printPending();
+  }
+
+  void _showAlarmPermissionGuide() {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Exact Alarms May Not Work',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'On Android 13+, exact timed alarms require special permission.\n\n'
+              'Go to:\n'
+              'Settings → Apps → [Your App] → Alarms & reminders\n'
+              '→ Allow setting alarms and reminders',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await openAppSettings();
+            },
+            child: const Text('Open Settings', style: TextStyle(color: Color(0xFF5200FF))),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDateForPicker(DateTime dateTime) {
     final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ];
 
     final dayName = days[dateTime.weekday - 1];
